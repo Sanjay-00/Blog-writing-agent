@@ -2,3 +2,4 @@ blogenv/
 .env
 __pycache__/
 *.pyc
+blog-writing-agent/
