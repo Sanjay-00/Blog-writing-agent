@@ -12,6 +12,7 @@ from langchain_core.messages import SystemMessage , HumanMessage
 import re
 from pathlib import Path
 from dotenv import load_dotenv
+import re
 load_dotenv()
 
 
@@ -200,5 +201,5 @@ g.add_edge("reducer",END)
 
 app= g.compile()
 
-output = app.invoke({"topic": "Write a blog on ai as career in indin", "section":[]})
+output = app.invoke({"topic": "Write a blog on ai as career in india", "section":[]})
 
