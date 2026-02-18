@@ -41,7 +41,7 @@ def orchestrator(state: State)-> dict:
         [
             SystemMessage(
                 content=(
-                    "Create a blog plan with 5-7 section on th following topic"
+                    "Create a blog plan with 5-7 section on the following topic"
                 )
             ),
             HumanMessage(
@@ -97,7 +97,7 @@ def reducer(state: State)-> dict:
     title = state["plan"].blog_title
     body = "\n\n".join(state["section"]).strip()
 
-    final_md = f"#{title}\n\n{body}\n"
+    final_md = f"# {title}\n\n{body}\n"
    
     safe_title = re.sub(r'[^\w\s-]', '', title) 
     filename = safe_title.lower().replace(" ","-")+".md"
