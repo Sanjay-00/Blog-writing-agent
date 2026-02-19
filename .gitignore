@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 blog-writing-agent/
 tempCodeRunnerFile.py
+*.md

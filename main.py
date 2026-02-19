@@ -1,6 +1,6 @@
 from __future__ import annotations
 import operator 
-from typing import TypedDict, List , Annotated,Literal
+from typing import TypedDict, List , Annotated,Literal, Optional
 
 from pydantic import BaseModel, Field
 from langgraph.graph import StateGraph , START,END
@@ -8,6 +8,7 @@ from langgraph. types import Send
 
 from langchain_google_genai  import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage , HumanMessage
+from langchain_community.tools.tavily_search import TavilySearchResults
 
 import re
 from pathlib import Path
@@ -35,29 +36,103 @@ class Task(BaseModel):
         ...,
         description="Target word count for this section (120-450).",
     )
-    section_type: Literal[
-        "intro", "core", "examples", "checklist", "common_mistakes", "conclusion"
-    ] = Field(
-        ...,
-        description="Use 'common_mistakes' exactly once in the plan.",
-    )
+    tags: List[str] = Field(default_factory = list)
+    required_research: bool =False
+    required_citations: bool=False
+    required_code: bool = False
 
 class Plan(BaseModel):
     blog_title : str
+    audience: str
     tasks: list[Task]
-    tone : str = Field(..., description="Writing tone (e.g., practical, crisp)." )
-    audience: str = Field(..., description="Who this blog is for.")
+    tone : str 
+    blog_kind: Literal["explainer", "tutorial", "news_roundup", "comparison", "system_design"] = "explainer"
+    constraints : List[str] = Field(default_factory=list)
+
+class EvidenceItem(BaseModel):
+    title: str
+    url:str
+    published_at: Optional[str] = None  
+    snippet: Optional[str] = None
+    source: Optional[str] = None
+
+class EvidencePack(BaseModel):
+    evidence: List[EvidenceItem] = Field(default_factory = list)
+
+class RouterDecision(BaseModel):
+    need_research: bool
+    mode:Literal["closed_book", "hybrid", "open_book"]
+    queries: List[str]
+
+
 
 class State(TypedDict):
     topic:str
-    plan:Plan
-    section: Annotated[list[str],operator.add]
+
+    mode:str
+    needs_research: bool
+    qeries: List[str]
+    plan: Optional[Plan]
+    evidence:List[EvidenceItem]
+
+    section: Annotated[list[tuple[int,str]],operator.add]
     final: str
 
 llm = ChatGoogleGenerativeAI(
     model = "gemini-2.0-flash",
     temperature = 0.7
 )
+
+
+
+ROUTER_SYSTEM = """You are a routing module for a technical blog planner.
+
+Decide whether web research is needed BEFORE planning.
+
+Modes:
+- closed_book (needs_research=false):
+  Evergreen topics where correctness does not depend on recent facts (concepts, fundamentals).
+- hybrid (needs_research=true):
+  Mostly evergreen but needs up-to-date examples/tools/models to be useful.
+- open_book (needs_research=true):
+  Mostly volatile: weekly roundups, "this week", "latest", rankings, pricing, policy/regulation.
+
+If needs_research=true:
+- Output 3–10 high-signal queries.
+- Queries should be scoped and specific (avoid generic queries like just "AI" or "LLM").
+- If user asked for "last week/this week/latest", reflect that constraint IN THE QUERIES.
+"""
+
+def router_node(state: State)-> dict:
+    topic = state["topic"]
+    decider= llm.with_structured_output(RouterDecision)
+    decision = decider.invoke(
+        [
+            SystemMessage(content= ROUTER_SYSTEM)
+            HumanMessage(content= f"Topic: {topic}"),
+
+        ]
+    )
+
+    return{
+        "need_research": decision.needs_research,
+        "mode": decision.mode,
+        "queries": decision.queries,
+    }
+
+
+def route_next(state:State)-> str:
+    return "research" if state["needs_research"] else "orchestrator"
+
+
+
+
+
+
+
+
+
+
 
 def orchestrator(state: State)-> dict:
     plan = llm.with_structured_output(Plan).invoke(
