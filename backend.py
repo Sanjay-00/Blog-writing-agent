@@ -89,6 +89,9 @@ class State(TypedDict):
     plan: Optional[Plan]
     evidence:List[EvidenceItem]
 
+    as_of: str
+    recency_days: int
+
     merged_md: str
     md_with_placeholders: str
     image_specs: List[dict]
@@ -531,17 +534,17 @@ g.add_edge("reducer",END)
 
 app= g.compile()
 
-topic = input('Enter you query : ')
+# topic = input('Enter you query : ')
 
-output = app.invoke(
-        {
-            "topic": topic,
-            "mode": "",
-            "needs_research": False,
-            "queries": [],
-            "evidence": [],
-            "plan": None,
-            "sections": [],
-            "final": "",
-        }
-    )
+# output = app.invoke(
+#         {
+#             "topic": topic,
+#             "mode": "",
+#             "needs_research": False,
+#             "queries": [],
+#             "evidence": [],
+#             "plan": None,
+#             "sections": [],
+#             "final": "",
+#         }
+#     )
