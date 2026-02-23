@@ -1,36 +1,80 @@
 import streamlit as st
 from backend import app
 from typing import Dict, Any
+from pathlib import Path
 import time
+import re
+
+st.set_page_config(page_title="Blog Agent", layout="wide")
+
+FILES_DIR = Path("files")
+FILES_DIR.mkdir(exist_ok=True)
+
+# Track selected blog in session
+if "selected_blog" not in st.session_state:
+    st.session_state.selected_blog = None
 
 # ------------------------
-# Page Config
+# Layout (20% / 80%)
 # ------------------------
-st.set_page_config(
-    page_title="Blog Agent",
-    layout="wide"
-)
+left, right = st.columns([1, 4])
 
 # ------------------------
-# Center Layout
+# LEFT PANEL (Scrollable History)
 # ------------------------
-col1, col2, col3 = st.columns([1, 2, 1])
+with left:
+    st.markdown("## 📚 History")
 
-with col2:
+    search = st.text_input("Search blog")
+
+    blog_files = sorted(FILES_DIR.glob("*.md"), reverse=True)
+
+    if search:
+        blog_files = [
+            f for f in blog_files
+            if search.lower() in f.name.lower()
+        ]
+
+    # Scrollable container
+    history_container = st.container(height=600)
+
+    with history_container:
+        for file in blog_files:
+            if st.button(file.stem, use_container_width=True):
+                st.session_state.selected_blog = file
+
+# ------------------------
+# RIGHT PANEL (Scrollable Blog Area)
+# ------------------------
+with right:
 
     st.title("📝 Blog Writing Agent")
 
-    # ------------------------
-    # Input
-    # ------------------------
-    topic = st.text_input("Enter blog topic")
-    generate = st.button("Generate", use_container_width=True)
+    with st.form("blog_form"):
+        topic = st.text_input("Enter blog topic")
+        generate = st.form_submit_button("Generate")
 
-    node_status = st.empty()
-    output_area = st.empty()
+    status_area = st.empty()
+    blog_container = st.container(height=700)
 
     # ------------------------
-    # Run Graph
+    # Load Selected Blog
+    # ------------------------
+    if st.session_state.selected_blog and not generate:
+        content = st.session_state.selected_blog.read_text(encoding="utf-8")
+        with blog_container:
+            st.markdown(content)
+
+            st.download_button(
+                "⬇️ Download",
+                data=content.encode("utf-8"),
+                file_name=st.session_state.selected_blog.name,
+                mime="text/markdown",
+                use_container_width=True
+            )
+
+    # ------------------------
+    # Generate New Blog
     # ------------------------
     if generate and topic.strip():
 
@@ -47,62 +91,54 @@ with col2:
         }
 
         final_state = {}
-        step_number = 0
         current_node = None
 
-        with st.spinner("Running agent..."):
+        with st.spinner("Generating blog..."):
 
-            # Use updates mode to detect nodes
             for update in app.stream(inputs, stream_mode="updates"):
 
                 if isinstance(update, dict) and len(update) == 1:
-
                     node_name = list(update.keys())[0]
                     node_output = list(update.values())[0]
 
-                    # Track state progressively
                     if isinstance(node_output, dict):
                         final_state.update(node_output)
 
-                    # Show step only when node changes
                     if node_name != current_node:
-                        step_number += 1
                         current_node = node_name
-                        node_status.info(
-                            f"⚙️ Step {step_number} — Executing: **{node_name}**"
-                        )
+                        status_area.info(f"⚙️ Executing: **{node_name}**")
 
-            node_status.success("✅ Blog generation completed")
+            status_area.success("✅ Blog generation completed")
 
-        # ------------------------
-        # ChatGPT-style Streaming Output
-        # ------------------------
         final_md = final_state.get("final", "")
 
         if final_md:
-            st.markdown("---")
 
-            stream_placeholder = output_area.empty()
-            streamed_text = ""
+           # Auto-select most recent file saved by backend
+            latest_file = max(FILES_DIR.glob("*.md"), key=lambda f: f.stat().st_mtime)
+            st.session_state.selected_blog = latest_file
 
-            # Stream character by character (preserves formatting)
-            for char in final_md:
-                streamed_text += char
-                stream_placeholder.markdown(streamed_text)
-                time.sleep(0.002)  # adjust speed here
+            # Stream display
+            with blog_container:
+                stream_placeholder = st.empty()
+                streamed_text = ""
+
+                for i in range(0, len(final_md), 60):
+                    streamed_text = final_md[:i+60]
+                    stream_placeholder.markdown(streamed_text)
+                    time.sleep(0.01)
+
+                st.download_button(
+                    "⬇️ Download",
+                    data=final_md.encode("utf-8"),
+                    file_name=file_path.name,
+                    mime="text/markdown",
+                    use_container_width=True
+                )
 
         else:
-            output_area.warning("No final output generated.")
-
-        st.markdown("### ⬇️ Download")
-
-        st.download_button(
-            label="Download Blog as Markdown",
-            data=final_md.encode("utf-8"),
-            file_name="blog.md",
-            mime="text/markdown",
-            use_container_width=True
-        )
+            with blog_container:
+                st.warning("No output generated.")
 
     elif generate:
-        st.warning("Please enter a topic.")
+        status_area.warning("Please enter a topic.")
