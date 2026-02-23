@@ -1,1 +1,0 @@
-re.sub(r'[^\w\s-]', '', title) 
