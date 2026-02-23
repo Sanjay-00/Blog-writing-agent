@@ -406,18 +406,18 @@ g.add_edge("merge_content",END)
 
 app= g.compile()
 
-topic = input('Enter you query : ')
+# topic = input('Enter you query : ')
 
-output = app.invoke(
-        {
-            "topic": topic,
-            "mode": "",
-            "needs_research": False,
-            "queries": [],
-            "evidence": [],
-            "plan": None,
-            "sections": [],
-            "merged_md": "",
-            "final": "",
-        }
-    )
+# output = app.invoke(
+#         {
+#             "topic": topic,
+#             "mode": "",
+#             "needs_research": False,
+#             "queries": [],
+#             "evidence": [],
+#             "plan": None,
+#             "sections": [],
+#             "merged_md": "",
+#             "final": "",
+#         }
+#     )
