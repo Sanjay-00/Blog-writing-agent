@@ -131,7 +131,7 @@ with right:
                 st.download_button(
                     "⬇️ Download",
                     data=final_md.encode("utf-8"),
-                    file_name=file_path.name,
+                    file_name="blog.md",
                     mime="text/markdown",
                     use_container_width=True
                 )
