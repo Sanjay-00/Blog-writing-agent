@@ -27,7 +27,11 @@ with left:
 
     search = st.text_input("Search blog")
 
-    blog_files = sorted(FILES_DIR.glob("*.md"), reverse=True)
+    blog_files = sorted(
+        FILES_DIR.glob("*.md"),
+        key=lambda f: f.stat().st_mtime,
+        reverse=True
+    )
 
     if search:
         blog_files = [
