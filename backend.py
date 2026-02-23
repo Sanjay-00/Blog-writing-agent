@@ -136,7 +136,14 @@ def _tavily_search(query:str , max_result: int=5)-> List[dict]:
 
     tool = TavilySearch(max_results=max_result)
     result= tool.invoke({"query":query})
-    results = result.get("results", [])
+    # results = result.get("results", [])
+    # Handle both possible formats
+    if isinstance(result, dict):
+        results = result.get("results", [])
+    elif isinstance(result, list):
+        results = result
+    else:
+        return []
 
     normalized: List[dict]=[]
     for r in results or []:
@@ -169,7 +176,7 @@ def research_node(state:State)->dict:
 
     queries= (state.get('queries',[]) or [])
     max_result=6
-
+    
     raw_results:List[dict]=[]
 
     for q in queries:

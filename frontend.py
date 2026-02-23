@@ -1,66 +1,108 @@
 import streamlit as st
 from backend import app
 from typing import Dict, Any
-
-st.set_page_config(page_title="Blog Agent", layout="centered")
-
-st.title("📝 Blog Writing Agent")
+import time
 
 # ------------------------
-# Input
+# Page Config
 # ------------------------
-topic = st.text_input("Enter blog topic")
-generate = st.button("Generate")
-
-# ------------------------
-# Placeholders
-# ------------------------
-node_status = st.empty()
-output_area = st.empty()
+st.set_page_config(
+    page_title="Blog Agent",
+    layout="wide"
+)
 
 # ------------------------
-# Run Graph
+# Center Layout
 # ------------------------
-if generate and topic.strip():
+col1, col2, col3 = st.columns([1, 2, 1])
 
-    inputs: Dict[str, Any] = {
-        "topic": topic.strip(),
-        "mode": "",
-        "needs_research": False,
-        "queries": [],
-        "evidence": [],
-        "plan": None,
-        "as_of": "",
-        "recency_days": 7,
-        "sections": [],
-        "merged_md": "",
-        "final": "",
-    }
+with col2:
 
-    with st.spinner("Running agent..."):
+    st.title("📝 Blog Writing Agent")
 
-        try:
-            for step in app.stream(inputs, stream_mode="updates"):
+    # ------------------------
+    # Input
+    # ------------------------
+    topic = st.text_input("Enter blog topic")
+    generate = st.button("Generate", use_container_width=True)
 
-                # step usually looks like:
-                # {"router": {...}}
-                if isinstance(step, dict) and len(step) == 1:
-                    node_name = list(step.keys())[0]
-                    node_status.info(f"⚙️ Executing node: **{node_name}**")
+    node_status = st.empty()
+    output_area = st.empty()
 
-            # After streaming finishes, get final state
-            result = app.invoke(inputs)
+    # ------------------------
+    # Run Graph
+    # ------------------------
+    if generate and topic.strip():
 
-            final_md = result.get("final", "")
+        inputs: Dict[str, Any] = {
+            "topic": topic.strip(),
+            "mode": "",
+            "needs_research": False,
+            "queries": [],
+            "evidence": [],
+            "plan": None,
+            "sections": [],
+            "merged_md": "",
+            "final": "",
+        }
 
-            if final_md:
-                node_status.success("✅ Completed")
-                output_area.markdown(final_md)
-            else:
-                output_area.warning("No final output generated.")
+        final_state = {}
+        step_number = 0
+        current_node = None
 
-        except Exception:
-            # Fallback if stream not supported
-            result = app.invoke(inputs)
-            final_md = result.get("final", "")
-            output_area.markdown(final_md)
+        with st.spinner("Running agent..."):
+
+            # Use updates mode to detect nodes
+            for update in app.stream(inputs, stream_mode="updates"):
+
+                if isinstance(update, dict) and len(update) == 1:
+
+                    node_name = list(update.keys())[0]
+                    node_output = list(update.values())[0]
+
+                    # Track state progressively
+                    if isinstance(node_output, dict):
+                        final_state.update(node_output)
+
+                    # Show step only when node changes
+                    if node_name != current_node:
+                        step_number += 1
+                        current_node = node_name
+                        node_status.info(
+                            f"⚙️ Step {step_number} — Executing: **{node_name}**"
+                        )
+
+            node_status.success("✅ Blog generation completed")
+
+        # ------------------------
+        # ChatGPT-style Streaming Output
+        # ------------------------
+        final_md = final_state.get("final", "")
+
+        if final_md:
+            st.markdown("---")
+
+            stream_placeholder = output_area.empty()
+            streamed_text = ""
+
+            # Stream character by character (preserves formatting)
+            for char in final_md:
+                streamed_text += char
+                stream_placeholder.markdown(streamed_text)
+                time.sleep(0.002)  # adjust speed here
+
+        else:
+            output_area.warning("No final output generated.")
+
+        st.markdown("### ⬇️ Download")
+
+        st.download_button(
+            label="Download Blog as Markdown",
+            data=final_md.encode("utf-8"),
+            file_name="blog.md",
+            mime="text/markdown",
+            use_container_width=True
+        )
+
+    elif generate:
+        st.warning("Please enter a topic.")
