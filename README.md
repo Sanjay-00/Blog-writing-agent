@@ -9,22 +9,35 @@ Most LLM-powered writing tools are single-prompt wrappers. BWA is a **multi-agen
 ## Pipeline
 
 ```
-topic
-  │
-  ▼
-┌──────────┐    closed_book     ┌──────────────┐
-│  Router  │ ─────────────────► │ Orchestrator │
-│          │    hybrid /        │   (Planner)  │
-│          │    open_book       └──────┬───────┘
-└──────────┘        │                  │  fan-out via Send
-                    ▼                  ▼
-             ┌──────────┐   ┌─────────────────────┐
-             │ Research │──►│ Worker · Worker · N  │  ← parallel
-             │ (Tavily) │   └──────────┬───────────┘
-             └──────────┘              ▼
-                                ┌─────────────┐
-                                │    Merge    │ → files/*.md
-                                └─────────────┘
+                  topic
+                    │
+                    ▼
+             ┌──────────────┐
+             │    Router    │
+             └──────┬───────┘
+          closed_book│  hybrid / open_book
+                     │         │
+                     │         ▼
+                     │  ┌──────────────┐
+                     │  │   Research   │
+                     │  │   (Tavily)   │
+                     │  └──────┬───────┘
+                     │         │
+                     └────┬────┘
+                          ▼
+                   ┌──────────────┐
+                   │ Orchestrator │
+                   │  (Planner)   │
+                   └──────┬───────┘
+                          │  fan-out via Send
+                          ▼
+             ┌────────────────────────┐
+             │  Worker · Worker · N   │  ← parallel
+             └────────────┬───────────┘
+                          ▼
+                   ┌──────────────┐
+                   │    Merge     │ → files/*.md
+                   └──────────────┘
 ```
 
 ---
@@ -47,11 +60,11 @@ topic
 
 | Layer | Choice |
 |---|---|
-| Orchestration | LangGraph — typed state machine with native fan-out |
-| LLM | Gemini 2.0 Flash — fast and cost-effective across 8+ calls per run |
-| Web search | Tavily — built for LLM pipelines, structured results with dates |
-| Schema enforcement | Pydantic v2 — validated contracts at every node boundary |
-| Frontend | Streamlit — two-panel layout with history browser and streaming output |
+| Orchestration | LangGraph - typed state machine with native fan-out |
+| LLM | Gemini 2.0 Flash - fast and cost-effective across 8+ calls per run |
+| Web search | Tavily - built for LLM pipelines, structured results with dates |
+| Schema enforcement | Pydantic v2 - validated contracts at every node boundary |
+| Frontend | Streamlit - two-panel layout with history browser and streaming output |
 
 ---
 
